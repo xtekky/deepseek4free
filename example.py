@@ -1,6 +1,9 @@
 from dsk.api import DeepSeekAPI, AuthenticationError, RateLimitError, NetworkError, APIError
 import sys, os
 from typing import Generator, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def print_response(chunks: Generator[Dict[str, Any], None, None]) -> None:
     """Helper function to print response chunks in a clean format"""

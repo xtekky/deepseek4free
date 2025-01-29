@@ -72,7 +72,7 @@ class DeepSeekAPI:
                 url=url,
                 headers=headers,
                 json=json_data,
-                impersonate='chrome131',
+                impersonate='chrome120',
                 timeout=None
             )
             
@@ -165,7 +165,7 @@ class DeepSeekAPI:
                 f"{self.BASE_URL}/chat/completion",
                 headers=headers,
                 json=json_data,
-                impersonate='chrome131',
+                impersonate='chrome120',
                 stream=True,
                 timeout=None
             )
@@ -178,7 +178,7 @@ class DeepSeekAPI:
                     raise RateLimitError("API rate limit exceeded")
                 else:
                     raise APIError(f"API request failed: {error_text}", response.status_code)
-
+            
             for chunk in response.iter_lines():
                 try:
                     parsed = self._parse_chunk(chunk)
