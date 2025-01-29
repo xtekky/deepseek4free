@@ -6,6 +6,10 @@ A Python package for interacting with the DeepSeek AI chat API. This package pro
 - and reverse wasm like it was required here
 - [whop.com/reverser-academy](https://whop.com/reverser-academy/) (beta)
 
+
+> ⚠️ **Service Notice**: DeepSeek API is currently experiencing high load. Work is in progress to integrate additional API providers. Please expect intermittent errors.
+
+
 ## ✨ Features
 
 - 🔄 **Streaming Responses**: Real-time interaction with token-by-token output
