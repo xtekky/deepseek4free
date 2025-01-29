@@ -1,0 +1,3 @@
+curl-cffi
+wasmtime
+numpy
