@@ -36,14 +36,16 @@ To use this package, you need a DeepSeek auth token. Here's how to obtain it:
 
 ### Method 1: From LocalStorage (Recommended)
 
+<img width="1150" alt="image" src="https://github.com/user-attachments/assets/b4e11650-3d1b-4638-956a-c67889a9f37e" />
+
 1. Visit [chat.deepseek.com](https://chat.deepseek.com)
 2. Log in to your account
 3. Open browser developer tools (F12 or right-click > Inspect)
 4. Go to Application tab (if not visible, click >> to see more tabs)
 5. In the left sidebar, expand "Local Storage"
 6. Click on "https://chat.deepseek.com"
-7. Find the key named "userToken"
-8. Copy its value - this is your authentication token
+7. Find the key named `userToken`
+8. Copy `"value"` - this is your authentication token
 
 ### Method 2: From Network Tab
 
