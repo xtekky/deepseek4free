@@ -72,7 +72,7 @@ class DeepSeekAPI:
                 url=url,
                 headers=headers,
                 json=json_data,
-                impersonate='chrome120',
+                impersonate='chrome131',
                 timeout=None
             )
             
@@ -165,7 +165,7 @@ class DeepSeekAPI:
                 f"{self.BASE_URL}/chat/completion",
                 headers=headers,
                 json=json_data,
-                impersonate='chrome120',
+                impersonate='chrome131',
                 stream=True,
                 timeout=None
             )

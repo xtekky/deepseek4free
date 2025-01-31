@@ -1,3 +1,4 @@
 curl-cffi
 wasmtime
 numpy
+drissionpage
