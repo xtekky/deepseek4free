@@ -2,6 +2,8 @@ from curl_cffi import requests
 from typing import Optional, Dict, Any, Generator, Literal
 import json
 from .pow import DeepSeekPOW
+import pkg_resources
+import sys
 
 ThinkingMode = Literal['detailed', 'simple', 'disabled']
 SearchMode = Literal['enabled', 'disabled']
@@ -34,6 +36,16 @@ class DeepSeekAPI:
     def __init__(self, auth_token: str):
         if not auth_token or not isinstance(auth_token, str):
             raise AuthenticationError("Invalid auth token provided")
+            
+        try:
+            curl_cffi_version = pkg_resources.get_distribution('curl-cffi').version
+            if curl_cffi_version != '0.8.1b9':
+                print("\033[93mWarning: DeepSeek API requires curl-cffi version 0.8.1b9", file=sys.stderr)
+                print("Please install the correct version using: pip install curl-cffi==0.8.1b9\033[0m", file=sys.stderr)
+        except pkg_resources.DistributionNotFound:
+            print("\033[93mWarning: curl-cffi not found. Please install version 0.8.1b9:", file=sys.stderr)
+            print("pip install curl-cffi==0.8.1b9\033[0m", file=sys.stderr)
+            
         self.auth_token = auth_token
         self.pow_solver = DeepSeekPOW()
         
