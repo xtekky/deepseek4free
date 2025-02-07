@@ -133,12 +133,7 @@ class DeepSeekAPI:
 
                 # Check if we hit Cloudflare protection
                 if "<!DOCTYPE html>" in response.text and "Just a moment" in response.text:
-                    print("\033[93mWarning: Cloudflare protection detected. Bypassing...\033[0m", file=sys.stderr)
-                    if retry_count < max_retries - 1:
-                        self._refresh_cookies()  # Refresh cookies
-                        retry_count += 1
-                        continue
-
+                    raise CloudflareError("Cloudflare protection encountered. run: python -m dsk.bypass")
                 # Handle other response codes
                 if response.status_code == 401:
                     raise AuthenticationError("Invalid or expired authentication token")
@@ -148,7 +143,6 @@ class DeepSeekAPI:
                     raise APIError(f"Server error occurred: {response.text}", response.status_code)
                 elif response.status_code != 200:
                     raise APIError(f"API request failed: {response.text}", response.status_code)
-
                 return response.json()
 
             except requests.exceptions.RequestException as e:
@@ -185,7 +179,7 @@ class DeepSeekAPI:
                     chat_session_id: str,
                     prompt: str,
                     parent_message_id: Optional[str] = None,
-                    thinking_enabled: bool = True,
+                    thinking_enabled: bool = False,
                     search_enabled: bool = False) -> Generator[Dict[str, Any], None, None]:
         """
         Send a message and get streaming response
