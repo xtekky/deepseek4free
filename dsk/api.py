@@ -24,6 +24,10 @@ class NetworkError(DeepSeekError):
     """Raised when network communication fails"""
     pass
 
+class CloudflareError(DeepSeekError):
+    """Raised when Cloudflare blocks the request"""
+    pass
+
 class APIError(DeepSeekError):
     """Raised when API returns an error response"""
     def __init__(self, message: str, status_code: Optional[int] = None):
@@ -87,6 +91,13 @@ class DeepSeekAPI:
                 impersonate='chrome131',
                 timeout=None
             )
+            
+            # Check for Cloudflare challenge
+            if response.status_code == 403 and '<title>Just a moment...</title>' in response.text:
+                raise CloudflareError(
+                    "Cloudflare is blocking requests. Please run 'python -m dsk.bypass' "
+                    "to get a new cf_clearance cookie and try again."
+                )
             
             if response.status_code == 401:
                 raise AuthenticationError("Invalid or expired authentication token")
