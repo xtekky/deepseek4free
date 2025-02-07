@@ -86,27 +86,6 @@ class DeepSeekAPI:
 
         return headers
 
-    def _refresh_cookies(self) -> None:
-        """Run the cookie refresh script and reload cookies"""
-        try:
-            # Get path to bypass.py
-            script_path = Path(__file__).parent / 'bypass.py'
-
-            # Run the script
-            subprocess.run([sys.executable, script_path], check=True)
-
-            # Wait briefly for cookies file to be written
-            time.sleep(2)
-
-            # Reload cookies
-            cookies_path = Path(__file__).parent / 'cookies.json'
-            with open(cookies_path, 'r') as f:
-                cookie_data = json.load(f)
-                self.cookies = cookie_data.get('cookies', {})
-
-        except Exception as e:
-            print(f"\033[93mWarning: Failed to refresh cookies: {e}\033[0m", file=sys.stderr)
-
     def _make_request(self, method: str, endpoint: str, json_data: Dict[str, Any], pow_required: bool = False) -> Any:
         url = f"{self.BASE_URL}{endpoint}"
 
