@@ -162,4 +162,3 @@ cython_debug/
 .DS_Store
 black.py
 test.py
-bypass.py
