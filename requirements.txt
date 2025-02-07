@@ -1,4 +1,5 @@
-curl-cffi
+curl-cffi==0.8.1b9
 wasmtime
 numpy
+nodriver
 drissionpage

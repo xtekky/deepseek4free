@@ -89,8 +89,8 @@ class DeepSeekAPI:
     def _refresh_cookies(self) -> None:
         """Run the cookie refresh script and reload cookies"""
         try:
-            # Get path to run_and_get_cookies.py
-            script_path = Path(__file__).parent / 'run_and_get_cookies.py'
+            # Get path to bypass.py
+            script_path = Path(__file__).parent / 'bypass.py'
 
             # Run the script
             subprocess.run([sys.executable, script_path], check=True)
@@ -109,47 +109,6 @@ class DeepSeekAPI:
 
     def _make_request(self, method: str, endpoint: str, json_data: Dict[str, Any], pow_required: bool = False) -> Any:
         url = f"{self.BASE_URL}{endpoint}"
-<<<<<<< HEAD
-
-        try:
-            headers = self._get_headers()
-            if pow_required:
-                challenge = self._get_pow_challenge()
-                pow_response = self.pow_solver.solve_challenge(challenge)
-                headers = self._get_headers(pow_response)
-
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=json_data,
-                impersonate='chrome131',
-                timeout=None
-            )
-
-            # Check for Cloudflare challenge
-            if response.status_code == 403 and '<title>Just a moment...</title>' in response.text:
-                raise CloudflareError(
-                    "Cloudflare is blocking requests. Please run 'python -m dsk.bypass' "
-                    "to get a new cf_clearance cookie and try again."
-                )
-
-            if response.status_code == 401:
-                raise AuthenticationError("Invalid or expired authentication token")
-            elif response.status_code == 429:
-                raise RateLimitError("API rate limit exceeded. Please wait before making more requests")
-            elif response.status_code >= 500:
-                raise APIError(f"Server error occurred: {response.text}", response.status_code)
-            elif response.status_code != 200:
-                raise APIError(f"API request failed: {response.text}", response.status_code)
-
-            return response.json()
-
-        except requests.exceptions.RequestException as e:
-            raise NetworkError(f"Network error occurred: {str(e)}")
-        except json.JSONDecodeError:
-            raise APIError("Invalid JSON response from server")
-=======
 
         retry_count = 0
         max_retries = 2
@@ -199,7 +158,6 @@ class DeepSeekAPI:
 
         raise APIError("Failed to bypass Cloudflare protection after multiple attempts")
 
->>>>>>> cabb5156bad5c84fb3682f21d07fd5c50dce411c
     def _get_pow_challenge(self) -> Dict[str, Any]:
         try:
             response = self._make_request(
@@ -224,11 +182,11 @@ class DeepSeekAPI:
             raise APIError("Invalid session creation response format from server")
 
     def chat_completion(self,
-                       chat_session_id: str,
-                       prompt: str,
-                       parent_message_id: Optional[str] = None,
-                       thinking_enabled: bool = True,
-                       search_enabled: bool = False) -> Generator[Dict[str, Any], None, None]:
+                    chat_session_id: str,
+                    prompt: str,
+                    parent_message_id: Optional[str] = None,
+                    thinking_enabled: bool = True,
+                    search_enabled: bool = False) -> Generator[Dict[str, Any], None, None]:
         """
         Send a message and get streaming response
 
