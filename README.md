@@ -9,6 +9,7 @@ A Python package for interacting with the DeepSeek AI chat API. This package pro
 
 > ⚠️ **Service Notice**: DeepSeek API is currently experiencing high load. Work is in progress to integrate additional API providers. Please expect intermittent errors.
 
+> 📝 **Note**: If you encounter any errors, please ensure you are using the latest version of this library. The DeepSeek API may change frequently, and updates are released to maintain compatibility.
 
 ## ✨ Features
 
@@ -62,6 +63,27 @@ Alternatively, you can get the token from network requests:
 5. Make any request in the chat
 6. Find the request headers
 7. Copy the `authorization` token (without 'Bearer ' prefix)
+
+### Handling Cloudflare Challenges
+
+If you encounter Cloudflare challenges ("Just a moment..." page), you'll need to get a `cf_clearance` cookie. Run this command:
+
+```bash
+python -m dsk.bypass
+```
+
+This will:
+1. Open an undetected browser
+2. Visit DeepSeek and solve the Cloudflare challenge
+3. Capture and save the `cf_clearance` cookie
+4. The cookie will be automatically used in future requests
+
+You only need to run this when:
+- You get Cloudflare challenges in your requests
+- Your existing cf_clearance cookie expires
+- You see the error "Please wait a few minutes before trying again"
+
+The captured cookie will be stored in `dsk/cookies.json` and automatically used by the API.
 
 ## 📚 Usage
 
@@ -156,6 +178,7 @@ from dsk.api import (
     AuthenticationError,
     RateLimitError,
     NetworkError,
+    CloudflareError,
     APIError
 )
 
@@ -171,64 +194,9 @@ except AuthenticationError:
     print("Authentication failed. Please check your token.")
 except RateLimitError:
     print("Rate limit exceeded. Please wait before making more requests.")
+except CloudflareError as e:
+    print(f"Cloudflare protection encountered: {str(e)}")
 except NetworkError:
     print("Network error occurred. Check your internet connection.")
 except APIError as e:
     print(f"API error occurred: {str(e)}")
-```
-
-### Helper Functions
-
-For cleaner output handling, you can use helper functions like in `example.py`:
-
-```python
-def print_response(chunks):
-    """Helper function to print response chunks in a clean format"""
-    thinking_lines = []
-    text_content = []
-    
-    for chunk in chunks:
-        if chunk['type'] == 'thinking':
-            if chunk['content'] not in thinking_lines:
-                thinking_lines.append(chunk['content'])
-                print(f"🤔 {chunk['content']}")
-        elif chunk['type'] == 'text':
-            text_content.append(chunk['content'])
-            print(chunk['content'], end='', flush=True)
-```
-
-## 🧪 Response Format
-
-The API returns chunks in the following format:
-
-```python
-{
-    'type': str,        # 'thinking' or 'text'
-    'content': str,     # The actual content
-    'finish_reason': str,  # 'stop' when response is complete
-    'message_id': str   # (optional) For threaded conversations
-}
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. Here are some ways you can contribute:
-
-- 🐛 Report bugs
-- ✨ Request features
-- 📝 Improve documentation
-- 🔧 Submit bug fixes
-- 🎨 Add examples
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ⚠️ Disclaimer
-
-This package is unofficial and not affiliated with DeepSeek. Use it responsibly and in accordance with DeepSeek's terms of service.
-
-## 🔗 Related Projects
-
-- [DeepSeek Chat](https://chat.deepseek.com) - Official DeepSeek chat interface
-- [Example Projects](example.py) - More usage examples
