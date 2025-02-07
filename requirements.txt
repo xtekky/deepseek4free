@@ -3,3 +3,7 @@ wasmtime
 numpy
 nodriver
 drissionpage
+fastapi
+uvicorn
+pyvirtualdisplay
+python-dotenv
