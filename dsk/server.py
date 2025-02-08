@@ -13,6 +13,7 @@ import argparse
 from pyvirtualdisplay import Display
 import uvicorn
 import atexit
+import time
 
 # Check if running in Docker mode
 DOCKER_MODE = os.getenv("DOCKERMODE", "false").lower() == "true"
@@ -60,31 +61,59 @@ def is_safe_url(url: str) -> bool:
     return True
 
 
+# Function to verify if the page has loaded properly
+def verify_page_loaded(driver: ChromiumPage) -> bool:
+    """Verify if the page has loaded properly"""
+    try:
+        # Wait for body element to be present
+        body = driver.ele('tag:body', timeout=10)
+        # Check if page has actual content
+        return len(body.html) > 100
+    except:
+        return False
+
+
 # Function to bypass Cloudflare protection
 def bypass_cloudflare(url: str, retries: int, log: bool, proxy: str = None) -> ChromiumPage:
+    max_load_retries = 3
 
-    options = ChromiumOptions().auto_port()
-    if DOCKER_MODE:
-        options.set_argument("--auto-open-devtools-for-tabs", "true")
-        options.set_argument("--remote-debugging-port=9222")
-        options.set_argument("--no-sandbox")  # Necessary for Docker
-        options.set_argument("--disable-gpu")  # Optional, helps in some cases
-        options.set_paths(browser_path=browser_path).headless(False)
-    else:
-        options.set_paths(browser_path=browser_path).headless(False)
+    for load_attempt in range(max_load_retries):
+        options = ChromiumOptions().auto_port()
+        if DOCKER_MODE:
+            options.set_argument("--auto-open-devtools-for-tabs", "true")
+            options.set_argument("--remote-debugging-port=9222")
+            options.set_argument("--no-sandbox")  # Necessary for Docker
+            options.set_argument("--disable-gpu")  # Optional, helps in some cases
+            options.set_paths(browser_path=browser_path).headless(False)
+        else:
+            options.set_paths(browser_path=browser_path).headless(False)
 
-    if proxy:
-        options.set_proxy(proxy)
+        if proxy:
+            options.set_proxy(proxy)
 
-    driver = ChromiumPage(addr_or_opts=options)
-    try:
-        driver.get(url)
-        cf_bypasser = CloudflareBypasser(driver, retries, log)
-        cf_bypasser.bypass()
-        return driver
-    except Exception as e:
-        driver.quit()
-        raise e
+        driver = ChromiumPage(addr_or_opts=options)
+        try:
+            driver.get(url)
+            # Wait for initial page load
+            time.sleep(5)
+
+            if not verify_page_loaded(driver):
+                driver.quit()
+                if load_attempt < max_load_retries - 1:
+                    time.sleep(3)
+                    continue
+                else:
+                    raise Exception("Failed to load page properly after multiple attempts")
+
+            cf_bypasser = CloudflareBypasser(driver, retries, log)
+            cf_bypasser.bypass()
+            return driver
+        except Exception as e:
+            driver.quit()
+            if load_attempt < max_load_retries - 1:
+                time.sleep(3)
+                continue
+            raise e
 
 
 # Endpoint to get cookies

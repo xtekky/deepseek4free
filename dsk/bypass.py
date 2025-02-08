@@ -6,12 +6,22 @@ import time
 import requests
 import json
 
-def get_and_save_cookies(server_url, cookie_file_path):
-    for attempt in range(5):
+def validate_cookies(cookies_data):
+    """Validate that cf_clearance cookie is present and not empty"""
+    cookies = cookies_data.get('cookies', {})
+    return 'cf_clearance' in cookies and cookies['cf_clearance'].strip() != ''
+
+def get_and_save_cookies(server_url, cookie_file_path, max_retries=3):
+    for attempt in range(max_retries):
         try:
             response = requests.get(server_url)
             response.raise_for_status()
             cookies_data = response.json()
+
+            if not validate_cookies(cookies_data):
+                print(f"Attempt {attempt + 1}: cf_clearance cookie not found, retrying...")
+                time.sleep(5)
+                continue
 
             cookies_to_save = {
                 'cookies': cookies_data.get('cookies', {}),
@@ -21,13 +31,19 @@ def get_and_save_cookies(server_url, cookie_file_path):
             os.makedirs(os.path.dirname(cookie_file_path), exist_ok=True)
             with open(cookie_file_path, 'w', encoding='utf-8') as f:
                 json.dump(cookies_to_save, f, indent=4, ensure_ascii=False)
-            return
+            print("Successfully obtained and saved cookies with cf_clearance!")
+            return True
 
         except requests.exceptions.ConnectionError as e:
-            if attempt < 4:
+            print(f"Connection error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
                 time.sleep(5)
             else:
-                raise
+                print("Max retries reached. Failed to get valid cookies.")
+                return False
+
+    print("Failed to obtain valid cf_clearance cookie after all attempts")
+    return False
 
 def run_server_background():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -53,9 +69,19 @@ if __name__ == "__main__":
     server_process = run_server_background()
 
     if server_process:
-        time.sleep(5)
+        # Increase initial wait time to ensure server is fully started
+        time.sleep(10)
         server_url = "http://localhost:8000/cookies?url=https://chat.deepseek.com"
         cookie_file = "dsk/cookies.json"
-        get_and_save_cookies(server_url, cookie_file)
+
+        # Increase max retries for more reliability
+        success = get_and_save_cookies(server_url, cookie_file, max_retries=5)
+
+        if not success:
+            print("Failed to obtain valid cookies.")
+            server_process.terminate()
+            sys.exit(1)
+        server_process.terminate()
     else:
         print("Failed to start server.")
+        sys.exit(1)
