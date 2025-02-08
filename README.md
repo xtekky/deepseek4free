@@ -39,6 +39,12 @@ pip install -r requirements.txt
 
 To use this package, you need a DeepSeek auth token. Here's how to obtain it:
 
+If you know how to use chrome devtools, simply run this snipped in the console:
+
+```js
+JSON.parse(localStorage.getItem("userToken")).value
+```
+
 ### Method 1: From LocalStorage (Recommended)
 
 <img width="1150" alt="image" src="https://github.com/user-attachments/assets/b4e11650-3d1b-4638-956a-c67889a9f37e" />
