@@ -9,7 +9,7 @@ def print_response(chunks: Generator[Dict[str, Any], None, None]) -> None:
     """Helper function to print response chunks in a clean format"""
     thinking_lines = []
     text_content = []
-    
+
     try:
         for chunk in chunks:
             if chunk['type'] == 'thinking':
@@ -20,13 +20,13 @@ def print_response(chunks: Generator[Dict[str, Any], None, None]) -> None:
     except KeyError as e:
         print(f"❌ Error: Malformed response chunk - missing key {str(e)}")
         return
-        
+
     if thinking_lines:
         print("\n🤔 Thinking:")
         for line in thinking_lines:
             print(f"  • {line}")
         print()
-    
+
     print("💬 Response:")
     print(''.join(text_content))
     print()
@@ -35,7 +35,7 @@ def run_chat_example(api: DeepSeekAPI, title: str, prompt: str, thinking_enabled
     """Run a chat example with error handling"""
     print(f"\n{title}")
     print("-" * 80)
-    
+
     try:
         chunks = api.chat_completion(
             api.create_chat_session(),
@@ -44,7 +44,7 @@ def run_chat_example(api: DeepSeekAPI, title: str, prompt: str, thinking_enabled
             search_enabled=search_enabled
         )
         print_response(chunks)
-        
+
     except AuthenticationError as e:
         print(f"❌ Authentication Error: {str(e)}")
         print("Please check your authentication token and try again.")
@@ -67,7 +67,7 @@ def main():
     try:
         # Initialize the API with your auth token
         api = DeepSeekAPI(os.getenv("DEEPSEEK_AUTH_TOKEN"))
-        
+
         # # Example 1: With thinking and web search
         # run_chat_example(
         #     api,
@@ -92,7 +92,7 @@ def main():
             "What is 2+2?",
             thinking_enabled=False
         )
-        
+
     except KeyboardInterrupt:
         print("\n\n⚠️ Operation cancelled by user")
         sys.exit(0)
@@ -101,4 +101,4 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() 
+    main()
