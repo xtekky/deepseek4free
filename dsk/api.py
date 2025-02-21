@@ -30,22 +30,18 @@ class APIError(DeepSeekError):
 
 class DeepSeekAPI:
     BASE_URL = "https://chat.deepseek.com/api/v0"
-    
-    def __init__(self, auth_token: str):
-        if not auth_token or not isinstance(auth_token, str):
+
+    def __init__(self, args: dict, auth_token: str = None):
+        self.auth_token = args.pop("api_key") if auth_token is None else auth_token
+        if not self.auth_token or not isinstance(self.auth_token, str):
             raise AuthenticationError("Invalid auth token provided")
-        self.auth_token = auth_token
+        self.args = args
         self.pow_solver = DeepSeekPOW()
-        
+
     def _get_headers(self, pow_response: Optional[str] = None) -> Dict[str, str]:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en,fr-FR;q=0.9,fr;q=0.8,es-ES;q=0.7,es;q=0.6,en-US;q=0.5,am;q=0.4,de;q=0.3',
             'authorization': f'Bearer {self.auth_token}',
             'content-type': 'application/json',
-            'origin': 'https://chat.deepseek.com',
-            'referer': 'https://chat.deepseek.com/',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
             'x-app-version': '20241129.1',
             'x-client-locale': 'en_US',
             'x-client-platform': 'web',
@@ -70,10 +66,11 @@ class DeepSeekAPI:
             response = requests.request(
                 method=method,
                 url=url,
-                headers=headers,
-                json=json_data,
-                impersonate='chrome131',
-                timeout=None
+                json=json_data, **{
+                    "headers":headers,
+                    "timeout":None,
+                    **self.args
+                }
             )
             
             if response.status_code == 401:
@@ -111,6 +108,8 @@ class DeepSeekAPI:
                 '/chat_session/create',
                 {'character_id': None}
             )
+            if not response['data']['biz_data']:
+                raise APIError(f"Invalid session creation response: {response}")
             return response['data']['biz_data']['id']
         except KeyError:
             raise APIError("Invalid session creation response format from server")
@@ -160,16 +159,16 @@ class DeepSeekAPI:
                     self._get_pow_challenge()
                 )
             )
+            headers = {**headers, **self.args["headers"]}
 
             response = requests.post(
                 f"{self.BASE_URL}/chat/completion",
-                headers=headers,
                 json=json_data,
-                impersonate='chrome131',
-                stream=True,
-                timeout=None
+                stream=True, **{
+                    **self.args,
+                    "headers":headers,
+                }
             )
-            
             if response.status_code != 200:
                 error_text = next(response.iter_lines(), b'').decode('utf-8', 'ignore')
                 if response.status_code == 401:
@@ -199,8 +198,9 @@ class DeepSeekAPI:
             
         try:
             if chunk.startswith(b'data: '):
+                if chunk[6:].startswith(b'[DONE]'):
+                    return
                 data = json.loads(chunk[6:])
-                
                 if 'choices' in data and data['choices']:
                     choice = data['choices'][0]
                     if 'delta' in choice:
@@ -212,7 +212,7 @@ class DeepSeekAPI:
                             'finish_reason': choice.get('finish_reason')
                         }
         except json.JSONDecodeError:
-            raise APIError("Invalid JSON in response chunk")
+            raise APIError(f"Invalid JSON in response chunk: {chunk.decode(errors='ignore')}")
         except Exception as e:
             raise APIError(f"Error parsing chunk: {str(e)}")
         
