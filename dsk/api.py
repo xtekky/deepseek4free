@@ -66,10 +66,11 @@ class DeepSeekAPI:
             response = requests.request(
                 method=method,
                 url=url,
-                json=json_data, **{
-                    "headers":headers,
+                json=json_data,
+                **{
                     "timeout":None,
-                    **self.args
+                    **self.args,
+                    "headers":{**headers, **self.args["headers"]},
                 }
             )
             
