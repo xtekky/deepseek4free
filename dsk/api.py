@@ -1,12 +1,18 @@
+from asyncio.timeouts import timeout
+from curl_cffi.requests import AsyncSession
 from curl_cffi import requests
+
 from typing import Optional, Dict, Any, Generator, Literal
 import json
+
+from requests import check_compatibility
 from .pow import DeepSeekPOW
 import pkg_resources
 import sys
 from pathlib import Path
 import subprocess
 import time
+import asyncio
 
 ThinkingMode = Literal['detailed', 'simple', 'disabled']
 SearchMode = Literal['enabled', 'disabled']
@@ -83,6 +89,8 @@ class DeepSeekAPI:
 
         if pow_response:
             headers['x-ds-pow-response'] = pow_response
+        
+        self.session = AsyncSession()
 
         return headers
 
@@ -107,21 +115,20 @@ class DeepSeekAPI:
         except Exception as e:
             print(f"\033[93mWarning: Failed to refresh cookies: {e}\033[0m", file=sys.stderr)
 
-    def _make_request(self, method: str, endpoint: str, json_data: Dict[str, Any], pow_required: bool = False) -> Any:
+    async def _make_request(self, method: str, endpoint: str, json_data: Dict[str, Any], pow_required: bool = False) -> Any:
         url = f"{self.BASE_URL}{endpoint}"
 
         retry_count = 0
         max_retries = 2
-
         while retry_count < max_retries:
             try:
                 headers = self._get_headers()
                 if pow_required:
-                    challenge = self._get_pow_challenge()
+                    challenge = await self._get_pow_challenge()
                     pow_response = self.pow_solver.solve_challenge(challenge)
                     headers = self._get_headers(pow_response)
 
-                response = requests.request(
+                response = await self.session.request(
                     method=method,
                     url=url,
                     headers=headers,
@@ -158,9 +165,9 @@ class DeepSeekAPI:
 
         raise APIError("Failed to bypass Cloudflare protection after multiple attempts")
 
-    def _get_pow_challenge(self) -> Dict[str, Any]:
+    async def _get_pow_challenge(self) -> Dict[str, Any]:
         try:
-            response = self._make_request(
+            response = await self._make_request(
                 'POST',
                 '/chat/create_pow_challenge',
                 {'target_path': '/api/v0/chat/completion'}
@@ -169,10 +176,10 @@ class DeepSeekAPI:
         except KeyError:
             raise APIError("Invalid challenge response format from server")
 
-    def create_chat_session(self) -> str:
+    async def create_chat_session(self) -> str:
         """Creates a new chat session and returns the session ID"""
         try:
-            response = self._make_request(
+            response = await self._make_request(
                 'POST',
                 '/chat_session/create',
                 {'character_id': None}
@@ -181,7 +188,7 @@ class DeepSeekAPI:
         except KeyError:
             raise APIError("Invalid session creation response format from server")
 
-    def chat_completion(self,
+    async def chat_completion(self,
                     chat_session_id: str,
                     prompt: str,
                     parent_message_id: Optional[str] = None,
@@ -223,11 +230,28 @@ class DeepSeekAPI:
         try:
             headers = self._get_headers(
                 pow_response=self.pow_solver.solve_challenge(
-                    self._get_pow_challenge()
+                    await self._get_pow_challenge()
                 )
             )
 
-            response = requests.post(
+
+
+            class GenResponse:
+
+                def __init__(self, generator):
+                    print(type(generator))
+                    self.__request_iter = generator.__iter__()
+
+
+                def __aiter__(self):
+                    return self
+
+                def __anext__(self):
+                    n = next(self.__request_iter.__next__()) 
+                    print(n)
+                    return n 
+
+            response = await self.session.post(
                 f"{self.BASE_URL}/chat/completion",
                 headers=headers,
                 json=json_data,
@@ -236,7 +260,6 @@ class DeepSeekAPI:
                 stream=True,
                 timeout=None
             )
-
             if response.status_code != 200:
                 error_text = next(response.iter_lines(), b'').decode('utf-8', 'ignore')
                 if response.status_code == 401:
@@ -246,7 +269,7 @@ class DeepSeekAPI:
                 else:
                     raise APIError(f"API request failed: {error_text}", response.status_code)
 
-            for chunk in response.iter_lines():
+            async for chunk in response.aiter_lines():
                 try:
                     parsed = self._parse_chunk(chunk)
                     if parsed:
