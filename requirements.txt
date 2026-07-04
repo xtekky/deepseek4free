@@ -3,3 +3,4 @@ wasmtime
 numpy
 nodriver
 drissionpage
+python-dotenv
