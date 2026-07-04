@@ -2,8 +2,8 @@ from curl_cffi import requests
 from typing import Optional, Dict, Any, Generator, Literal
 import json
 from .pow import DeepSeekPOW
-import pkg_resources
 import sys
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from pathlib import Path
 import subprocess
 import time
@@ -45,11 +45,11 @@ class DeepSeekAPI:
             raise AuthenticationError("Invalid auth token provided")
 
         try:
-            curl_cffi_version = pkg_resources.get_distribution('curl-cffi').version
+            curl_cffi_version = _pkg_version('curl-cffi')
             if curl_cffi_version != '0.8.1b9':
                 print("\033[93mWarning: DeepSeek API requires curl-cffi version 0.8.1b9", file=sys.stderr)
                 print("Please install the correct version using: pip install curl-cffi==0.8.1b9\033[0m", file=sys.stderr)
-        except pkg_resources.DistributionNotFound:
+        except PackageNotFoundError:
             print("\033[93mWarning: curl-cffi not found. Please install version 0.8.1b9:", file=sys.stderr)
             print("pip install curl-cffi==0.8.1b9\033[0m", file=sys.stderr)
 
@@ -231,7 +231,7 @@ class DeepSeekAPI:
                 f"{self.BASE_URL}/chat/completion",
                 headers=headers,
                 json=json_data,
-                cookies=self.cookies,  # Add cookies
+                cookies=self.cookies,
                 impersonate='chrome120',
                 stream=True,
                 timeout=None
@@ -246,41 +246,59 @@ class DeepSeekAPI:
                 else:
                     raise APIError(f"API request failed: {error_text}", response.status_code)
 
-            for chunk in response.iter_lines():
-                try:
-                    parsed = self._parse_chunk(chunk)
+            response_state = {}
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                for parsed in self._parse_sse(line, response_state):
                     if parsed:
                         yield parsed
                         if parsed.get('finish_reason') == 'stop':
-                            break
-                except Exception as e:
-                    raise APIError(f"Error parsing response chunk: {str(e)}")
+                            return
 
         except requests.exceptions.RequestException as e:
             raise NetworkError(f"Network error occurred during streaming: {str(e)}")
 
-    def _parse_chunk(self, chunk: bytes) -> Optional[Dict[str, Any]]:
-        """Parse a SSE chunk from the API response"""
-        if not chunk:
-            return None
-
+    def _parse_sse(self, line: bytes, state: dict) -> Generator[Dict[str, Any], None, None]:
         try:
-            if chunk.startswith(b'data: '):
-                data = json.loads(chunk[6:])
-
-                if 'choices' in data and data['choices']:
-                    choice = data['choices'][0]
-                    if 'delta' in choice:
-                        delta = choice['delta']
-
-                        return {
-                            'content': delta.get('content', ''),
-                            'type': delta.get('type', ''),
-                            'finish_reason': choice.get('finish_reason')
-                        }
+            if line.startswith(b'data: '):
+                data = json.loads(line[6:])
+            elif line.startswith(b'event: finish'):
+                yield {'type': 'text', 'content': '', 'finish_reason': 'stop'}
+                return
+            else:
+                return
         except json.JSONDecodeError:
-            raise APIError("Invalid JSON in response chunk")
-        except Exception as e:
-            raise APIError(f"Error parsing chunk: {str(e)}")
+            return
 
-        return None
+        path = data.get('p')
+        op = data.get('o')
+        val = data.get('v')
+
+        if path:
+            state['_last_path'] = path
+
+        if val is None:
+            return
+
+        # Full state snapshot: {"v": {"response": {...}}}
+        if isinstance(val, dict) and 'response' in val:
+            state['response'] = val['response']
+            return
+
+        # Status finished
+        if path == 'response/status' and val == 'FINISHED':
+            yield {'type': 'text', 'content': '', 'finish_reason': 'stop'}
+            return
+
+        path = path or state.get('_last_path')
+        if not path:
+            return
+
+        if op == 'APPEND' or (op is None and path != 'response/status'):
+            if path == 'response/content' and isinstance(val, str):
+                if val:
+                    yield {'type': 'text', 'content': val, 'finish_reason': None}
+            elif path == 'response/thinking_content' and isinstance(val, str):
+                if val:
+                    yield {'type': 'thinking', 'content': val, 'finish_reason': None}
