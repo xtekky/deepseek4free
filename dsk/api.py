@@ -278,7 +278,10 @@ class DeepSeekAPI:
         if path:
             state['_last_path'] = path
 
-        if val is None:
+        # Message IDs: {"request_message_id":1,"response_message_id":2,...}
+        if 'request_message_id' in data and 'response_message_id' in data:
+            state['_parent_message_id'] = data['response_message_id']
+            yield {'type': 'meta', 'parent_message_id': data['response_message_id']}
             return
 
         # Full state snapshot: {"v": {"response": {...}}}
