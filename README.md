@@ -2,11 +2,6 @@
 
 A Python package for interacting with the DeepSeek AI chat API. This package provides a clean interface to interact with DeepSeek's chat model, with support for streaming responses, thinking process visibility, and web search capabilities.
 
-### Learn how to reverse engineer private api's !!
-- and reverse wasm like it was required here
-- [whop.com/reverser-academy](https://whop.com/reverser-academy/) (beta)
-
-
 > ⚠️ **Service Notice**: DeepSeek API is currently experiencing high load. Work is in progress to integrate additional API providers. Please expect intermittent errors.
 
 > 📝 **Note**: If you encounter any errors, please ensure you are using the latest version of this library. The DeepSeek API may change frequently, and updates are released to maintain compatibility.
